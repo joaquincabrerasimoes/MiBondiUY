@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:mibondiuy/models/bus.dart';
 import 'package:mibondiuy/models/bus_stop.dart';
 import 'package:mibondiuy/models/company.dart';
@@ -258,14 +262,153 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  void _centerMap() {
-    _centerMapCallback?.call(_initialCenter, _initialZoom);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Map centered to default location'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  /// Determines if the app is running on a mobile platform
+  bool get _isMobilePlatform {
+    if (kIsWeb) return false;
+    return Platform.isAndroid || Platform.isIOS;
+  }
+
+  /// Requests location permission and returns true if granted
+  Future<bool> _requestLocationPermission() async {
+    try {
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location services are disabled. Please enable them in device settings.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return false;
+      }
+
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Location permissions are denied'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Location permissions are permanently denied. Please enable them in app settings.'),
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => openAppSettings(),
+              ),
+            ),
+          );
+        }
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      logger.error('Error requesting location permission', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error accessing location: $e')),
+        );
+      }
+      return false;
+    }
+  }
+
+  /// Gets the current device location
+  Future<ll.LatLng?> _getCurrentLocation() async {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      return ll.LatLng(position.latitude, position.longitude);
+    } catch (e) {
+      logger.error('Error getting current location', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not get current location: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return null;
+    }
+  }
+
+  /// Centers the map based on platform
+  Future<void> _centerMap() async {
+    logger.info('_centerMap called, isMobilePlatform: $_isMobilePlatform');
+    logger.info('_centerMapCallback is null: ${_centerMapCallback == null}');
+
+    if (_isMobilePlatform) {
+      // Mobile: Get current location and zoom in more
+      bool hasPermission = await _requestLocationPermission();
+      if (!hasPermission) return;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Getting your location...'),
+              ],
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+
+      final currentLocation = await _getCurrentLocation();
+      if (currentLocation != null) {
+        logger.info('Centering map to location: ${currentLocation.latitude}, ${currentLocation.longitude} with zoom 16.0');
+        _centerMapCallback?.call(currentLocation, 16.0); // Higher zoom for mobile
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('📍 Centered to your location (${currentLocation.latitude.toStringAsFixed(4)}, ${currentLocation.longitude.toStringAsFixed(4)})'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } else {
+      // Desktop: Use default coordinates
+      _centerMapCallback?.call(_initialCenter, _initialZoom);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Map centered to default location'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   void _showBusInfo(Bus bus) {
@@ -617,8 +760,8 @@ class _MapScreenState extends State<MapScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.my_location),
-            tooltip: 'Center Map',
+            icon: Icon(_isMobilePlatform ? Icons.my_location : Icons.center_focus_strong),
+            tooltip: _isMobilePlatform ? 'My Location' : 'Center Map',
             onPressed: _centerMap,
           ),
           IconButton(
@@ -654,6 +797,7 @@ class _MapScreenState extends State<MapScreen> {
             onClusterMarkerTapped: _showClusterInfo,
             onBusStopMarkerTapped: _showBusStopInfo,
             onMapReady: (centerCallback) {
+              logger.info('Map ready callback received');
               _centerMapCallback = centerCallback;
             },
           ),

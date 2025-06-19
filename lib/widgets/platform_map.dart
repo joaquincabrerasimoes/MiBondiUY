@@ -116,21 +116,30 @@ class _PlatformMapState extends State<PlatformMap> {
     super.initState();
     _currentZoom = widget.initialZoom;
     _currentCenter = widget.initialCenter;
-    if (_isDesktop) {
-      _flutterMapController = fmap.MapController();
-    }
-
-    // Provide the center function to the parent widget
-    widget.onMapReady?.call(_centerMapToLocation);
+    // Initialize controller for all platforms since we're using FlutterMap everywhere
+    _flutterMapController = fmap.MapController();
   }
 
   void _centerMapToLocation(ll.LatLng center, double zoom) {
+    logger.info('_centerMapToLocation called with: $center, zoom: $zoom');
+    logger.info('Map controller is null: ${_flutterMapController == null}');
+
     if (_flutterMapController != null) {
-      _flutterMapController!.move(center, zoom);
+      try {
+        logger.info('Attempting to move map controller');
+        _flutterMapController!.move(center, zoom);
+        logger.info('Map controller move successful');
+      } catch (e) {
+        logger.error('Error moving map controller', e);
+      }
+    } else {
+      logger.warning('Map controller is null, cannot move map');
     }
+
     setState(() {
       _currentCenter = center;
       _currentZoom = zoom;
+      logger.info('Updated state: center=$_currentCenter, zoom=$_currentZoom');
     });
   }
 
@@ -159,6 +168,11 @@ class _PlatformMapState extends State<PlatformMap> {
               _currentCenter = position.center;
             });
           }
+        },
+        onMapReady: () {
+          logger.info('FlutterMap is ready, controller available: ${_flutterMapController != null}');
+          // Provide the center function to the parent widget now that the map is ready
+          widget.onMapReady?.call(_centerMapToLocation);
         },
       ),
       children: [
