@@ -17,24 +17,37 @@ class AboutScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 32),
             // App logo
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
+            SizedBox(
+              width: 512,
+              height: 512,
+              child: Stack(
+                children: [
+                  // Uruguay shape background (centered)
+                  Center(
+                    child: ColorFiltered(
+                      colorFilter: const ColorFilter.mode(
+                        Colors.blue,
+                        BlendMode.srcIn,
+                      ),
+                      child: Image.asset(
+                        'assets/images/uruguayShape.png',
+                        width: 512,
+                        height: 512,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  // Bus icon positioned with pixel precision
+                  Positioned(
+                    left: 90, // Adjust these values to position the icon
+                    top: 150, // exactly where you want it
+                    child: const Icon(
+                      Icons.directions_bus_rounded,
+                      color: Colors.white,
+                      size: 300,
+                    ),
                   ),
                 ],
-              ),
-              child: const Icon(
-                Icons.directions_bus_rounded,
-                color: Colors.white,
-                size: 60,
               ),
             ),
             const SizedBox(height: 24),

@@ -7,11 +7,8 @@ class FilterDrawer extends StatefulWidget {
   final int selectedCompany;
   final Set<int> selectedCompanies;
   final List<String> selectedLines;
-  final Function(
-      {int? subsystem,
-      int? company,
-      Set<int>? companies,
-      List<String>? lines}) onFiltersChanged;
+  final Map<int, Color> customCompanyColors;
+  final Function({int? subsystem, int? company, Set<int>? companies, List<String>? lines}) onFiltersChanged;
 
   const FilterDrawer({
     super.key,
@@ -19,6 +16,7 @@ class FilterDrawer extends StatefulWidget {
     required this.selectedCompany,
     required this.selectedCompanies,
     required this.selectedLines,
+    this.customCompanyColors = const {},
     required this.onFiltersChanged,
   });
 
@@ -38,9 +36,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
     super.initState();
     _tempSubsystem = widget.selectedSubsystem;
     _tempCompany = widget.selectedCompany;
-    _tempCompanies = widget.selectedCompanies.isNotEmpty
-        ? Set.from(widget.selectedCompanies)
-        : Company.companies.map((c) => c.code).toSet();
+    _tempCompanies = widget.selectedCompanies.isNotEmpty ? Set.from(widget.selectedCompanies) : Company.companies.map((c) => c.code).toSet();
     _tempLines = List.from(widget.selectedLines);
     _linesController = TextEditingController(text: _tempLines.join(', '));
   }
@@ -75,10 +71,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
                 Text(
                   'Filter Options',
                   style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onPrimary
-                        .withValues(alpha: 0.7),
+                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
                     fontSize: 16,
                   ),
                 ),
@@ -141,11 +134,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
                       border: OutlineInputBorder(),
                     ),
                     onChanged: (value) {
-                      _tempLines = value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .where((s) => s.isNotEmpty)
-                          .toList();
+                      _tempLines = value.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
                     },
                   ),
                 ),
@@ -166,8 +155,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
                     setState(() {
                       if (value == true) {
                         // Select all companies
-                        _tempCompanies
-                            .addAll(Company.companies.map((c) => c.code));
+                        _tempCompanies.addAll(Company.companies.map((c) => c.code));
                       } else {
                         // Unselect all companies
                         _tempCompanies.clear();
@@ -183,7 +171,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
                           width: 16,
                           height: 16,
                           decoration: BoxDecoration(
-                            color: company.color,
+                            color: widget.customCompanyColors[company.code] ?? company.color,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -217,8 +205,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
                       setState(() {
                         _tempSubsystem = -1;
                         _tempCompany = -1;
-                        _tempCompanies =
-                            Company.companies.map((c) => c.code).toSet();
+                        _tempCompanies = Company.companies.map((c) => c.code).toSet();
                         _tempLines.clear();
                         _linesController.clear();
                       });
@@ -230,8 +217,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      _linesController.text =
-                          _linesController.text.toUpperCase();
+                      _linesController.text = _linesController.text.toUpperCase();
                       widget.onFiltersChanged(
                         subsystem: _tempSubsystem,
                         company: _tempCompany,

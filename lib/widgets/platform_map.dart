@@ -13,10 +13,12 @@ import 'package:mibondiuy/services/logging_service.dart';
 class _PieChartPainter extends CustomPainter {
   final Map<int, int> companyDistribution;
   final double strokeWidth;
+  final Map<int, Color> customCompanyColors;
 
   _PieChartPainter({
     required this.companyDistribution,
     this.strokeWidth = 3.0,
+    this.customCompanyColors = const {},
   });
 
   @override
@@ -24,8 +26,7 @@ class _PieChartPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - strokeWidth;
 
-    final totalBuses =
-        companyDistribution.values.fold<int>(0, (sum, count) => sum + count);
+    final totalBuses = companyDistribution.values.fold<int>(0, (sum, count) => sum + count);
     if (totalBuses == 0) return;
 
     double startAngle = -math.pi / 2; // Start from top
@@ -37,7 +38,7 @@ class _PieChartPainter extends CustomPainter {
       final sweepAngle = (count / totalBuses) * 2 * math.pi;
 
       final paint = Paint()
-        ..color = Company.getColorByCode(companyCode)
+        ..color = Company.getColorByCode(companyCode, customColors: customCompanyColors)
         ..style = PaintingStyle.fill;
 
       canvas.drawArc(
@@ -62,8 +63,7 @@ class _PieChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return oldDelegate is! _PieChartPainter ||
-        oldDelegate.companyDistribution != companyDistribution;
+    return oldDelegate is! _PieChartPainter || oldDelegate.companyDistribution != companyDistribution || oldDelegate.customCompanyColors != customCompanyColors;
   }
 }
 
@@ -75,6 +75,7 @@ class PlatformMap extends StatefulWidget {
   final Set<int> selectedCompanies;
   final List<String> selectedLines;
   final BusStop? selectedBusStop;
+  final Map<int, Color> customCompanyColors;
   final Function(Bus) onBusMarkerTapped;
   final Function(BusCluster) onClusterMarkerTapped;
   final Function(BusStop)? onBusStopMarkerTapped;
@@ -89,6 +90,7 @@ class PlatformMap extends StatefulWidget {
     this.selectedBusStop,
     required this.selectedCompanies,
     required this.selectedLines,
+    this.customCompanyColors = const {},
     required this.onBusMarkerTapped,
     required this.onClusterMarkerTapped,
     this.onBusStopMarkerTapped,
@@ -202,23 +204,16 @@ class _PlatformMapState extends State<PlatformMap> {
 
     // Calculate visible bounds based on current camera position and screen size
     final screenSize = MediaQuery.of(context).size;
-    final visibleBounds = MarkerClustering.calculateVisibleBounds(
-        _currentCenter, _currentZoom, screenSize);
+    final visibleBounds = MarkerClustering.calculateVisibleBounds(_currentCenter, _currentZoom, screenSize);
 
     // Apply viewport culling - only show bus stops in visible area
     final visibleBusStops = widget.busStops.where((busStop) {
-      return busStop.latitude >= visibleBounds.south &&
-          busStop.latitude <= visibleBounds.north &&
-          busStop.longitude >= visibleBounds.west &&
-          busStop.longitude <= visibleBounds.east;
+      return busStop.latitude >= visibleBounds.south && busStop.latitude <= visibleBounds.north && busStop.longitude >= visibleBounds.west && busStop.longitude <= visibleBounds.east;
     }).toList();
 
-    logger.debug(
-        'Total bus stops: ${widget.busStops.length}, Visible: ${visibleBusStops.length}');
+    logger.debug('Total bus stops: ${widget.busStops.length}, Visible: ${visibleBusStops.length}');
 
-    return visibleBusStops
-        .map((busStop) => _createBusStopMarker(busStop))
-        .toList();
+    return visibleBusStops.map((busStop) => _createBusStopMarker(busStop)).toList();
   }
 
   fmap.Marker _createBusStopMarker(BusStop busStop) {
@@ -235,21 +230,13 @@ class _PlatformMapState extends State<PlatformMap> {
         onTap: () => widget.onBusStopMarkerTapped?.call(busStop),
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.secondary,
+            color: Colors.brown[700],
             shape: BoxShape.rectangle,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-                color: isSelectedBusStop
-                    ? Colors.green
-                    : (Theme.of(context).brightness == Brightness.light
-                        ? Colors.white
-                        : Colors.black),
-                width: isSelectedBusStop ? 4 : 2),
+            border: Border.all(color: isSelectedBusStop ? Colors.green : (Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.black), width: isSelectedBusStop ? 4 : 2),
             boxShadow: [
               BoxShadow(
-                color: isSelectedBusStop
-                    ? Colors.green.withValues(alpha: 0.6)
-                    : Colors.black.withValues(alpha: 0.3),
+                color: isSelectedBusStop ? Colors.green.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.3),
                 blurRadius: isSelectedBusStop ? 6 : 3,
                 offset: const Offset(0, 1),
               ),
@@ -269,13 +256,11 @@ class _PlatformMapState extends State<PlatformMap> {
     // Filter buses based on selected companies and lines
     final filteredBuses = widget.buses.where((bus) {
       // Apply company filter
-      if (widget.selectedCompanies.isNotEmpty &&
-          !widget.selectedCompanies.contains(bus.codigoEmpresa)) {
+      if (widget.selectedCompanies.isNotEmpty && !widget.selectedCompanies.contains(bus.codigoEmpresa)) {
         return false;
       }
       // Apply line filter
-      if (widget.selectedLines.isNotEmpty &&
-          !widget.selectedLines.contains(bus.linea)) {
+      if (widget.selectedLines.isNotEmpty && !widget.selectedLines.contains(bus.linea)) {
         return false;
       }
       return true;
@@ -283,15 +268,12 @@ class _PlatformMapState extends State<PlatformMap> {
 
     // Calculate visible bounds based on current camera position and screen size
     final screenSize = MediaQuery.of(context).size;
-    final visibleBounds = MarkerClustering.calculateVisibleBounds(
-        _currentCenter, _currentZoom, screenSize);
+    final visibleBounds = MarkerClustering.calculateVisibleBounds(_currentCenter, _currentZoom, screenSize);
 
     // Apply viewport culling - only show buses in visible area
-    final visibleBuses =
-        MarkerClustering.filterBusesInBounds(filteredBuses, visibleBounds);
+    final visibleBuses = MarkerClustering.filterBusesInBounds(filteredBuses, visibleBounds);
 
-    logger.trace(
-        'Total buses: ${widget.buses.length}, Filtered: ${filteredBuses.length}, Visible: ${visibleBuses.length}');
+    logger.trace('Total buses: ${widget.buses.length}, Filtered: ${filteredBuses.length}, Visible: ${visibleBuses.length}');
 
     // Cluster the visible buses
     final clusters = MarkerClustering.clusterBuses(visibleBuses, _currentZoom);
@@ -309,23 +291,19 @@ class _PlatformMapState extends State<PlatformMap> {
   }
 
   fmap.Marker _createSingleBusMarker(Bus bus) {
-    final color = Company.getColorByCode(bus.codigoEmpresa);
+    final color = Company.getColorByCode(bus.codigoEmpresa, customColors: widget.customCompanyColors);
 
     bool isLineOfSelectedBusStop = false;
     bool isUpcomingOfSelectedBusStop = false;
 
     if (widget.selectedBusStop != null) {
       if (widget.selectedBusStop!.lines != null) {
-        logger
-            .trace('Selected bus stop lines: ${widget.selectedBusStop!.lines}');
-        isLineOfSelectedBusStop = widget.selectedBusStop!.lines!
-            .any((line) => line.line == bus.linea);
+        logger.trace('Selected bus stop lines: ${widget.selectedBusStop!.lines}');
+        isLineOfSelectedBusStop = widget.selectedBusStop!.lines!.any((line) => line.line == bus.linea);
       }
       if (widget.selectedBusStop!.upcomingBuses != null) {
-        logger.trace(
-            'Selected bus stop upcoming buses: ${widget.selectedBusStop!.upcomingBuses}');
-        isUpcomingOfSelectedBusStop = widget.selectedBusStop!.upcomingBuses!
-            .any((upcoming) => upcoming.busId == bus.codigoBus);
+        logger.trace('Selected bus stop upcoming buses: ${widget.selectedBusStop!.upcomingBuses}');
+        isUpcomingOfSelectedBusStop = widget.selectedBusStop!.upcomingBuses!.any((upcoming) => upcoming.busId == bus.codigoBus);
       }
     }
 
@@ -347,25 +325,15 @@ class _PlatformMapState extends State<PlatformMap> {
       shapeWidget = Transform.rotate(
         angle: math.pi / 4, // 45 degrees in radians
         child: Container(
-          width: isUpcomingOfSelectedBusStop
-              ? 34.0
-              : 28.0, // Slightly smaller to fit within bounds when rotated
+          width: isUpcomingOfSelectedBusStop ? 34.0 : 28.0, // Slightly smaller to fit within bounds when rotated
           height: isUpcomingOfSelectedBusStop ? 34.0 : 28.0,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.rectangle,
-            border: Border.all(
-                color: isUpcomingOfSelectedBusStop
-                    ? Colors.green
-                    : (Theme.of(context).brightness == Brightness.light
-                        ? Colors.white
-                        : Colors.black),
-                width: isUpcomingOfSelectedBusStop ? 4 : 2),
+            border: Border.all(color: isUpcomingOfSelectedBusStop ? Colors.green : (Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.black), width: isUpcomingOfSelectedBusStop ? 4 : 2),
             boxShadow: [
               BoxShadow(
-                color: isUpcomingOfSelectedBusStop
-                    ? Colors.green.withValues(alpha: 0.6)
-                    : Colors.black.withValues(alpha: 0.3),
+                color: isUpcomingOfSelectedBusStop ? Colors.green.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.3),
                 blurRadius: isUpcomingOfSelectedBusStop ? 6 : 4,
                 offset: const Offset(0, 2),
               ),
@@ -385,11 +353,7 @@ class _PlatformMapState extends State<PlatformMap> {
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
-          border: Border.all(
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.white
-                  : Colors.black,
-              width: 2),
+          border: Border.all(color: Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.black, width: 2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.3),
@@ -425,8 +389,7 @@ class _PlatformMapState extends State<PlatformMap> {
     // Calculate company distribution in the cluster
     final companyDistribution = <int, int>{};
     for (final bus in cluster.buses) {
-      companyDistribution[bus.codigoEmpresa] =
-          (companyDistribution[bus.codigoEmpresa] ?? 0) + 1;
+      companyDistribution[bus.codigoEmpresa] = (companyDistribution[bus.codigoEmpresa] ?? 0) + 1;
     }
 
     return fmap.Marker(
@@ -454,9 +417,8 @@ class _PlatformMapState extends State<PlatformMap> {
               CustomPaint(
                 painter: _PieChartPainter(
                   companyDistribution: companyDistribution,
-                  strokeWidth: Theme.of(context).brightness == Brightness.light
-                      ? 3.0
-                      : 3.0,
+                  strokeWidth: Theme.of(context).brightness == Brightness.light ? 3.0 : 3.0,
+                  customCompanyColors: widget.customCompanyColors,
                 ),
                 size: const Size(45.0, 45.0),
               ),

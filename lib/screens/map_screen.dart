@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mibondiuy/models/bus.dart';
 import 'package:mibondiuy/models/bus_stop.dart';
 import 'package:mibondiuy/models/company.dart';
@@ -15,6 +16,7 @@ import 'package:mibondiuy/widgets/adaptive_filter_panel.dart';
 import 'package:mibondiuy/widgets/platform_map.dart';
 import 'package:mibondiuy/widgets/refresh_countdown.dart';
 import 'package:mibondiuy/screens/about_screen.dart';
+import 'package:mibondiuy/screens/settings_screen.dart';
 
 class MapScreen extends StatefulWidget {
   final theme_service.ThemeService? themeService;
@@ -26,6 +28,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  static const String _customCompanyColorsCacheKey = 'custom_company_colors';
+
   List<Bus> _buses = [];
   List<BusStop> _busStops = [];
   Timer? _refreshTimer;
@@ -43,6 +47,11 @@ class _MapScreenState extends State<MapScreen> {
   bool _showBusStopPanel = false;
   BusStop? _selectedBusStop;
 
+  // Settings
+  bool _alwaysShowAllBusStops = true;
+  bool _alwaysShowAllBuses = true;
+  Map<int, Color> _customCompanyColors = {};
+
   // Montevideo coordinates - updated to user's preferred center
   static const ll.LatLng _initialCenter = ll.LatLng(-34.881179, -56.180883);
   static const double _initialZoom = 12.0;
@@ -53,9 +62,69 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCustomCompanyColors();
     _loadBuses();
     _loadBusStops();
     _startPeriodicRefresh();
+  }
+
+  /// Loads custom company colors from SharedPreferences
+  Future<void> _loadCustomCompanyColors() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final colorData = prefs.getString(_customCompanyColorsCacheKey);
+
+      if (colorData != null) {
+        final Map<String, dynamic> colorMap = {};
+        // Parse the stored string as a simple format: "companyCode:colorValue,companyCode:colorValue"
+        final pairs = colorData.split(',');
+        for (final pair in pairs) {
+          if (pair.contains(':')) {
+            final parts = pair.split(':');
+            if (parts.length == 2) {
+              final companyCode = int.tryParse(parts[0]);
+              final colorValue = int.tryParse(parts[1]);
+              if (companyCode != null && colorValue != null) {
+                colorMap[companyCode.toString()] = colorValue;
+              }
+            }
+          }
+        }
+
+        // Convert to Map<int, Color>
+        final customColors = <int, Color>{};
+        colorMap.forEach((key, value) {
+          final companyCode = int.tryParse(key);
+          if (companyCode != null && value is int) {
+            customColors[companyCode] = Color(value);
+          }
+        });
+
+        setState(() {
+          _customCompanyColors = customColors;
+        });
+      }
+    } catch (e) {
+      logger.error('Error loading custom company colors', e);
+    }
+  }
+
+  /// Saves custom company colors to SharedPreferences
+  Future<void> _saveCustomCompanyColors() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (_customCompanyColors.isEmpty) {
+        await prefs.remove(_customCompanyColorsCacheKey);
+      } else {
+        // Convert Map<int, Color> to string format: "companyCode:colorValue,companyCode:colorValue"
+        final colorPairs = _customCompanyColors.entries.map((entry) => '${entry.key}:${entry.value.toARGB32()}').join(',');
+
+        await prefs.setString(_customCompanyColorsCacheKey, colorPairs);
+      }
+    } catch (e) {
+      logger.error('Error saving custom company colors', e);
+    }
   }
 
   @override
@@ -66,8 +135,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _startPeriodicRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer =
-        Timer.periodic(Duration(seconds: _refreshIntervalSeconds), (timer) {
+    _refreshTimer = Timer.periodic(Duration(seconds: _refreshIntervalSeconds), (timer) {
       _loadBuses();
     });
   }
@@ -93,8 +161,7 @@ class _MapScreenState extends State<MapScreen> {
 
       final zeroBusesCount = buses.length - filteredBuses.length;
       if (zeroBusesCount > 0) {
-        logger.trace(
-            '🚌 Filtered out $zeroBusesCount buses with coordinates (0, 0)');
+        logger.trace('🚌 Filtered out $zeroBusesCount buses with coordinates (0, 0)');
       }
 
       setState(() {
@@ -130,8 +197,7 @@ class _MapScreenState extends State<MapScreen> {
 
       final zeroBusStopsCount = busStops.length - filteredBusStops.length;
       if (zeroBusStopsCount > 0) {
-        logger.trace(
-            '🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0)');
+        logger.trace('🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0)');
       }
 
       setState(() {
@@ -167,8 +233,7 @@ class _MapScreenState extends State<MapScreen> {
 
       final zeroBusStopsCount = busStops.length - filteredBusStops.length;
       if (zeroBusStopsCount > 0) {
-        logger.trace(
-            '🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0) during refresh');
+        logger.trace('🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0) during refresh');
       }
 
       setState(() {
@@ -205,6 +270,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _showBusInfo(Bus bus) {
     final company = Company.getByCode(bus.codigoEmpresa);
+    final companyColor = Company.getColorByCode(bus.codigoEmpresa, customColors: _customCompanyColors);
 
     showModalBottomSheet(
       context: context,
@@ -232,10 +298,7 @@ class _MapScreenState extends State<MapScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(top: 12, bottom: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.4),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -248,17 +311,16 @@ class _MapScreenState extends State<MapScreen> {
                         width: 24,
                         height: 24,
                         decoration: BoxDecoration(
-                          color: company?.color ?? Colors.grey,
+                          color: companyColor,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 12),
                       Text(
                         'Line ${bus.linea}',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),
@@ -277,8 +339,7 @@ class _MapScreenState extends State<MapScreen> {
                       _buildInfoRow('Type', bus.tipoLineaDesc),
                       _buildInfoRow('Bus Number', bus.codigoBus.toString()),
                       _buildInfoRow('Speed', '${bus.velocidad} km/h'),
-                      _buildInfoRow('Coordinates',
-                          '${bus.latitude.toStringAsFixed(6)}, ${bus.longitude.toStringAsFixed(6)}'),
+                      _buildInfoRow('Coordinates', '${bus.latitude.toStringAsFixed(6)}, ${bus.longitude.toStringAsFixed(6)}'),
                     ],
                   ),
                 ),
@@ -331,10 +392,7 @@ class _MapScreenState extends State<MapScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(top: 12, bottom: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.4),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -351,10 +409,9 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(width: 12),
                       Text(
                         '${cluster.count} Buses in Area',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),
@@ -369,6 +426,7 @@ class _MapScreenState extends State<MapScreen> {
                     itemBuilder: (context, index) {
                       final bus = cluster.buses[index];
                       final company = Company.getByCode(bus.codigoEmpresa);
+                      final companyColor = Company.getColorByCode(bus.codigoEmpresa, customColors: _customCompanyColors);
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8.0),
                         child: ListTile(
@@ -376,7 +434,7 @@ class _MapScreenState extends State<MapScreen> {
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: company?.color ?? Colors.grey,
+                              color: companyColor,
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -395,8 +453,7 @@ class _MapScreenState extends State<MapScreen> {
                           trailing: Icon(
                             Icons.arrow_forward_ios,
                             size: 16,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           onTap: () {
                             //Navigator.of(context).pop();
@@ -444,11 +501,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  void _applyFilters(
-      {int? subsystem,
-      int? company,
-      Set<int>? companies,
-      List<String>? lines}) {
+  void _applyFilters({int? subsystem, int? company, Set<int>? companies, List<String>? lines}) {
     setState(() {
       if (subsystem != null) _selectedSubsystem = subsystem;
       if (company != null) _selectedCompany = company;
@@ -465,11 +518,49 @@ class _MapScreenState extends State<MapScreen> {
     _startPeriodicRefresh();
   }
 
-  int get _filteredBusCount {
-    return _buses.where((bus) {
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          themeService: widget.themeService,
+          onRefreshBusStops: _refreshBusStops,
+          isRefreshingBusStops: _isLoadingBusStops,
+          alwaysShowAllBusStops: _alwaysShowAllBusStops,
+          alwaysShowAllBuses: _alwaysShowAllBuses,
+          onAlwaysShowAllBusStopsChanged: (value) {
+            setState(() {
+              _alwaysShowAllBusStops = value;
+            });
+          },
+          onAlwaysShowAllBusesChanged: (value) {
+            setState(() {
+              _alwaysShowAllBuses = value;
+            });
+          },
+          customCompanyColors: _customCompanyColors,
+          onCompanyColorChanged: (companyCode, color) {
+            setState(() {
+              _customCompanyColors[companyCode] = color;
+            });
+            _saveCustomCompanyColors();
+          },
+        ),
+      ),
+    );
+  }
+
+  List<BusStop> get _filteredBusStops {
+    if (_alwaysShowAllBusStops || !_showBusStopPanel || _selectedBusStop == null) {
+      return _busStops;
+    }
+    // Only show the selected bus stop
+    return [_selectedBusStop!];
+  }
+
+  List<Bus> get _filteredBusesForDisplay {
+    var filteredBuses = _buses.where((bus) {
       // Apply company filter
-      if (_selectedCompanies.isNotEmpty &&
-          !_selectedCompanies.contains(bus.codigoEmpresa)) {
+      if (_selectedCompanies.isNotEmpty && !_selectedCompanies.contains(bus.codigoEmpresa)) {
         return false;
       }
       // Apply line filter
@@ -477,13 +568,21 @@ class _MapScreenState extends State<MapScreen> {
         return false;
       }
       return true;
-    }).length;
+    }).toList();
+
+    // Apply "always show all buses" filter
+    if (!_alwaysShowAllBuses && _showBusStopPanel && _selectedBusStop != null) {
+      // Only show buses that go through the selected bus stop
+      final selectedBusStopLines = _selectedBusStop!.lines?.map((line) => line.line).toSet() ?? <String>{};
+      filteredBuses = filteredBuses.where((bus) => selectedBusStopLines.contains(bus.linea)).toList();
+    }
+
+    return filteredBuses;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       appBar: AppBar(
@@ -498,17 +597,17 @@ class _MapScreenState extends State<MapScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
+              SizedBox(
                 width: 32,
                 height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.blue,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.directions_bus_rounded,
-                  color: Colors.white,
-                  size: 20,
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -523,22 +622,10 @@ class _MapScreenState extends State<MapScreen> {
             onPressed: _centerMap,
           ),
           IconButton(
-            icon: _isLoadingBusStops
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-            tooltip: 'Refresh Bus Stops',
-            onPressed: _isLoadingBusStops ? null : _refreshBusStops,
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: _openSettings,
           ),
-          if (widget.themeService != null)
-            IconButton(
-              icon: Icon(widget.themeService!.themeIcon),
-              tooltip: widget.themeService!.themeTooltip,
-              onPressed: () => widget.themeService!.toggleTheme(),
-            ),
         ],
       ),
       drawer: !isLandscape
@@ -547,6 +634,7 @@ class _MapScreenState extends State<MapScreen> {
               selectedCompany: _selectedCompany,
               selectedCompanies: _selectedCompanies,
               selectedLines: _selectedLines,
+              customCompanyColors: _customCompanyColors,
               onFiltersChanged: _applyFilters,
             )
           : null,
@@ -556,11 +644,12 @@ class _MapScreenState extends State<MapScreen> {
           PlatformMap(
             initialCenter: _initialCenter,
             initialZoom: _initialZoom,
-            buses: _buses,
-            busStops: _busStops,
+            buses: _filteredBusesForDisplay,
+            busStops: _filteredBusStops,
             selectedCompanies: _selectedCompanies,
             selectedLines: _selectedLines,
             selectedBusStop: _showBusStopPanel ? _selectedBusStop : null,
+            customCompanyColors: _customCompanyColors,
             onBusMarkerTapped: _showBusInfo,
             onClusterMarkerTapped: _showClusterInfo,
             onBusStopMarkerTapped: _showBusStopInfo,
@@ -579,6 +668,7 @@ class _MapScreenState extends State<MapScreen> {
                 selectedCompany: _selectedCompany,
                 selectedCompanies: _selectedCompanies,
                 selectedLines: _selectedLines,
+                customCompanyColors: _customCompanyColors,
                 onFiltersChanged: _applyFilters,
               ),
             ),
@@ -611,10 +701,7 @@ class _MapScreenState extends State<MapScreen> {
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outline
-                                .withValues(alpha: 0.2),
+                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                           ),
                         ),
                       ),
@@ -640,22 +727,14 @@ class _MapScreenState extends State<MapScreen> {
                               children: [
                                 Text(
                                   _selectedBusStop!.name,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.bold,
                                       ),
                                 ),
                                 Text(
                                   'Stop ${_selectedBusStop!.code}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                               ],
@@ -725,11 +804,11 @@ class _MapScreenState extends State<MapScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Buses shown: $_filteredBusCount',
+                      'Buses shown: ${_filteredBusesForDisplay.length}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      'Bus stops: ${_busStops.length}',
+                      'Bus stops: ${_filteredBusStops.length}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -742,12 +821,8 @@ class _MapScreenState extends State<MapScreen> {
           ),
           // Refresh countdown in bottom right (moves when bus stop panel is open)
           Positioned(
-            bottom: _showBusStopPanel && !isLandscape
-                ? 420
-                : 16, // Move up in portrait when panel is open
-            right: _showBusStopPanel && isLandscape
-                ? 382
-                : 16, // Move left in landscape when panel is open
+            bottom: _showBusStopPanel && !isLandscape ? 420 : 16, // Move up in portrait when panel is open
+            right: _showBusStopPanel && isLandscape ? 382 : 16, // Move left in landscape when panel is open
             child: RefreshCountdown(
               refreshIntervalSeconds: _refreshIntervalSeconds,
               onRefresh: _loadBuses,
