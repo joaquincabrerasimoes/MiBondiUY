@@ -6,6 +6,7 @@ import 'package:mibondiuy/models/bus_stop.dart';
 import 'package:mibondiuy/models/company.dart';
 import 'package:mibondiuy/services/bus_service.dart';
 import 'package:mibondiuy/services/bus_stop_service.dart';
+import 'package:mibondiuy/services/logging_service.dart';
 import 'package:mibondiuy/services/theme_service.dart' as theme_service;
 import 'package:mibondiuy/utils/marker_clustering.dart';
 import 'package:mibondiuy/widgets/filter_drawer.dart';
@@ -65,7 +66,8 @@ class _MapScreenState extends State<MapScreen> {
 
   void _startPeriodicRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(Duration(seconds: _refreshIntervalSeconds), (timer) {
+    _refreshTimer =
+        Timer.periodic(Duration(seconds: _refreshIntervalSeconds), (timer) {
       _loadBuses();
     });
   }
@@ -91,7 +93,8 @@ class _MapScreenState extends State<MapScreen> {
 
       final zeroBusesCount = buses.length - filteredBuses.length;
       if (zeroBusesCount > 0) {
-        print('🚌 Filtered out $zeroBusesCount buses with coordinates (0, 0)');
+        logger.trace(
+            '🚌 Filtered out $zeroBusesCount buses with coordinates (0, 0)');
       }
 
       setState(() {
@@ -127,7 +130,8 @@ class _MapScreenState extends State<MapScreen> {
 
       final zeroBusStopsCount = busStops.length - filteredBusStops.length;
       if (zeroBusStopsCount > 0) {
-        print('🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0)');
+        logger.trace(
+            '🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0)');
       }
 
       setState(() {
@@ -163,7 +167,8 @@ class _MapScreenState extends State<MapScreen> {
 
       final zeroBusStopsCount = busStops.length - filteredBusStops.length;
       if (zeroBusStopsCount > 0) {
-        print('🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0) during refresh');
+        logger.trace(
+            '🚏 Filtered out $zeroBusStopsCount bus stops with coordinates (0, 0) during refresh');
       }
 
       setState(() {
@@ -227,7 +232,10 @@ class _MapScreenState extends State<MapScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(top: 12, bottom: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -247,9 +255,10 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(width: 12),
                       Text(
                         'Line ${bus.linea}',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
@@ -268,7 +277,8 @@ class _MapScreenState extends State<MapScreen> {
                       _buildInfoRow('Type', bus.tipoLineaDesc),
                       _buildInfoRow('Bus Number', bus.codigoBus.toString()),
                       _buildInfoRow('Speed', '${bus.velocidad} km/h'),
-                      _buildInfoRow('Coordinates', '${bus.latitude.toStringAsFixed(6)}, ${bus.longitude.toStringAsFixed(6)}'),
+                      _buildInfoRow('Coordinates',
+                          '${bus.latitude.toStringAsFixed(6)}, ${bus.longitude.toStringAsFixed(6)}'),
                     ],
                   ),
                 ),
@@ -321,7 +331,10 @@ class _MapScreenState extends State<MapScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(top: 12, bottom: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -338,9 +351,10 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(width: 12),
                       Text(
                         '${cluster.count} Buses in Area',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
@@ -381,7 +395,8 @@ class _MapScreenState extends State<MapScreen> {
                           trailing: Icon(
                             Icons.arrow_forward_ios,
                             size: 16,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           onTap: () {
                             //Navigator.of(context).pop();
@@ -429,7 +444,11 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  void _applyFilters({int? subsystem, int? company, Set<int>? companies, List<String>? lines}) {
+  void _applyFilters(
+      {int? subsystem,
+      int? company,
+      Set<int>? companies,
+      List<String>? lines}) {
     setState(() {
       if (subsystem != null) _selectedSubsystem = subsystem;
       if (company != null) _selectedCompany = company;
@@ -449,7 +468,8 @@ class _MapScreenState extends State<MapScreen> {
   int get _filteredBusCount {
     return _buses.where((bus) {
       // Apply company filter
-      if (_selectedCompanies.isNotEmpty && !_selectedCompanies.contains(bus.codigoEmpresa)) {
+      if (_selectedCompanies.isNotEmpty &&
+          !_selectedCompanies.contains(bus.codigoEmpresa)) {
         return false;
       }
       // Apply line filter
@@ -462,7 +482,8 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       appBar: AppBar(
@@ -589,7 +610,10 @@ class _MapScreenState extends State<MapScreen> {
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withValues(alpha: 0.2),
                           ),
                         ),
                       ),
@@ -615,14 +639,22 @@ class _MapScreenState extends State<MapScreen> {
                               children: [
                                 Text(
                                   _selectedBusStop!.name,
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                       ),
                                 ),
                                 Text(
                                   'Stop ${_selectedBusStop!.code}',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                                       ),
                                 ),
                               ],
@@ -703,8 +735,12 @@ class _MapScreenState extends State<MapScreen> {
           ),
           // Refresh countdown in bottom right (moves when bus stop panel is open)
           Positioned(
-            bottom: _showBusStopPanel && !isLandscape ? 420 : 16, // Move up in portrait when panel is open
-            right: _showBusStopPanel && isLandscape ? 382 : 16, // Move left in landscape when panel is open
+            bottom: _showBusStopPanel && !isLandscape
+                ? 420
+                : 16, // Move up in portrait when panel is open
+            right: _showBusStopPanel && isLandscape
+                ? 382
+                : 16, // Move left in landscape when panel is open
             child: RefreshCountdown(
               refreshIntervalSeconds: _refreshIntervalSeconds,
               onRefresh: _loadBuses,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mibondiuy/screens/map_screen.dart';
 import 'package:mibondiuy/services/theme_service.dart' as theme_service;
+import 'package:mibondiuy/services/logging_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,10 +11,12 @@ void main() async {
   try {
     await dotenv.load(fileName: "assets/.env");
   } catch (e) {
-    // Use debugPrint instead of print for production-safe logging
-    debugPrint('Warning: Could not load .env file: $e');
+    logger.warning('Could not load .env file', e);
     // Continue anyway, the app should handle missing env vars gracefully
   }
+
+  // Initialize logging service
+  logger.initialize(dotenv.env['LOGGIN_MODE']);
 
   final themeService = theme_service.ThemeService();
   await themeService.initialize();

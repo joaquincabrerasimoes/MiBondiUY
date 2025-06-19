@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mibondiuy/models/bus_stop.dart';
+import 'package:mibondiuy/services/logging_service.dart';
 
 class BusStopService {
   static const String _tokenCacheKey = 'oauth_token';
@@ -12,8 +13,8 @@ class BusStopService {
   static const String _busStopsTimeCacheKey = 'bus_stops_cache_time';
   static const String _busStopLinesCacheKey = 'bus_stop_lines_cache';
   static const String _busStopLinesTimeCacheKey = 'bus_stop_lines_cache_time';
-  static const int _tokenExpiryMinutes = 5; // Tokens expire after 5 minutes
-  static const int _tokenRefreshMinutes = 4; // Refresh proactively after 4 minutes
+  static const int _tokenRefreshMinutes =
+      4; // Refresh proactively after 4 minutes
   static const int _cacheExpiryHours = 24; // Cache bus stops for 24 hours
   static const int _linesCacheExpiryMinutes = 30; // Cache lines for 30 minutes
 
@@ -21,8 +22,10 @@ class BusStopService {
   static String get _clientId => dotenv.env['CLIENT_ID'] ?? '';
   static String get _clientSecret => dotenv.env['CLIENT_SECRET'] ?? '';
   static String get _busStopsApi => dotenv.env['BUS_STOPS_API'] ?? '';
-  static String get _busStopsApiLines => dotenv.env['BUS_STOPS_API_LINES'] ?? '';
-  static String get _busStopsApiUpcoming => dotenv.env['BUS_STOPS_API_UPCOMING'] ?? '';
+  static String get _busStopsApiLines =>
+      dotenv.env['BUS_STOPS_API_LINES'] ?? '';
+  static String get _busStopsApiUpcoming =>
+      dotenv.env['BUS_STOPS_API_UPCOMING'] ?? '';
 
   /// Gets a valid OAuth 2.0 token, either from cache or by requesting a new one
   /// Proactively refreshes the token if it's older than 4 minutes (before the 5-minute expiry)
@@ -75,7 +78,8 @@ class BusStopService {
           // Cache the token
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_tokenCacheKey, token);
-          await prefs.setInt(_tokenTimeCacheKey, DateTime.now().millisecondsSinceEpoch);
+          await prefs.setInt(
+              _tokenTimeCacheKey, DateTime.now().millisecondsSinceEpoch);
 
           return token;
         }
@@ -89,17 +93,17 @@ class BusStopService {
 
   /// Gets bus stops from cache or API
   static Future<List<BusStop>> getBusStops({bool forceRefresh = false}) async {
-    print("Getting bus stops");
+    logger.debug("Getting bus stops");
     if (!forceRefresh) {
       final cachedStops = await _getCachedBusStops();
       if (cachedStops != null) {
-        print("Got bus stops from cache");
+        logger.debug("Got bus stops from cache");
         return cachedStops;
       }
     }
 
     // Cache miss or force refresh, fetch from API
-    print("Fetching bus stops from API");
+    logger.debug("Fetching bus stops from API");
     return await _fetchBusStopsFromApi();
   }
 
@@ -121,7 +125,7 @@ class BusStopService {
       }
     } catch (e) {
       // If there's an error reading cache, return null to fetch from API
-      debugPrint('Error reading bus stops cache: $e');
+      logger.error('Error reading bus stops cache', e);
     }
 
     return null;
@@ -159,7 +163,8 @@ class BusStopService {
           throw Exception('Unexpected API response format');
         }
 
-        final busStops = stopsData.map((json) => BusStop.fromJson(json)).toList();
+        final busStops =
+            stopsData.map((json) => BusStop.fromJson(json)).toList();
 
         // Cache the results
         await _cacheBusStops(busStops);
@@ -173,7 +178,7 @@ class BusStopService {
         throw Exception('Failed to load bus stops: ${response.statusCode}');
       }
     } catch (e) {
-      print(e);
+      logger.error('Error fetching bus stops', e);
       throw Exception('Error fetching bus stops: $e');
     }
   }
@@ -184,9 +189,10 @@ class BusStopService {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = busStops.map((stop) => stop.toJson()).toList();
       await prefs.setString(_busStopsCacheKey, jsonEncode(jsonList));
-      await prefs.setInt(_busStopsTimeCacheKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+          _busStopsTimeCacheKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
-      debugPrint('Error caching bus stops: $e');
+      logger.error('Error caching bus stops', e);
     }
   }
 
@@ -211,18 +217,19 @@ class BusStopService {
   }
 
   /// Gets lines that pass through a specific bus stop
-  static Future<List<BusLine>> getBusStopLines(String busStopId, {bool forceRefresh = false}) async {
-    print("Getting lines for bus stop $busStopId");
+  static Future<List<BusLine>> getBusStopLines(String busStopId,
+      {bool forceRefresh = false}) async {
+    logger.debug("Getting lines for bus stop $busStopId");
     if (!forceRefresh) {
       final cachedLines = await _getCachedBusStopLines(busStopId);
       if (cachedLines != null) {
-        print("Got lines from cache");
+        logger.debug("Got lines from cache");
         return cachedLines;
       }
     }
 
     // Cache miss or force refresh, fetch from API
-    print("Fetching lines from API");
+    logger.debug("Fetching lines from API");
     return await _fetchBusStopLinesFromApi(busStopId);
   }
 
@@ -247,14 +254,15 @@ class BusStopService {
       }
     } catch (e) {
       // If there's an error reading cache, return null to fetch from API
-      debugPrint('Error reading bus stop lines cache: $e');
+      logger.error('Error reading bus stop lines cache', e);
     }
 
     return null;
   }
 
   /// Fetches lines for a specific bus stop from the API
-  static Future<List<BusLine>> _fetchBusStopLinesFromApi(String busStopId) async {
+  static Future<List<BusLine>> _fetchBusStopLinesFromApi(
+      String busStopId) async {
     final token = await getValidatedToken();
     if (token == null) {
       throw Exception('Unable to get valid access token');
@@ -292,7 +300,8 @@ class BusStopService {
         }
 
         // Convert to BusLine objects
-        final busLines = linesData.map((json) => BusLine.fromJson(json)).toList();
+        final busLines =
+            linesData.map((json) => BusLine.fromJson(json)).toList();
 
         // Cache the results (still cache as raw JSON for efficiency)
         await _cacheBusStopLines(busStopId, linesData);
@@ -306,17 +315,20 @@ class BusStopService {
         // Bus stop not found or no lines available
         return [];
       } else {
-        print(response);
-        throw Exception('Failed to load bus stop lines: ${response.statusCode}');
+        logger.error('Failed to load bus stop lines',
+            'Status: ${response.statusCode}, Response: ${response.body}');
+        throw Exception(
+            'Failed to load bus stop lines: ${response.statusCode}');
       }
     } catch (e) {
-      print(e);
+      logger.error('Error fetching bus stop lines', e);
       throw Exception('Error fetching bus stop lines: $e');
     }
   }
 
   /// Caches bus stop lines data locally
-  static Future<void> _cacheBusStopLines(String busStopId, List<dynamic> linesData) async {
+  static Future<void> _cacheBusStopLines(
+      String busStopId, List<dynamic> linesData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = '${_busStopLinesCacheKey}_$busStopId';
@@ -325,7 +337,7 @@ class BusStopService {
       await prefs.setString(cacheKey, jsonEncode(linesData));
       await prefs.setInt(timeCacheKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
-      debugPrint('Error caching bus stop lines: $e');
+      logger.error('Error caching bus stop lines', e);
     }
   }
 
@@ -345,7 +357,8 @@ class BusStopService {
     final keys = prefs.getKeys();
 
     for (String key in keys) {
-      if (key.startsWith(_busStopLinesCacheKey) || key.startsWith(_busStopLinesTimeCacheKey)) {
+      if (key.startsWith(_busStopLinesCacheKey) ||
+          key.startsWith(_busStopLinesTimeCacheKey)) {
         await prefs.remove(key);
       }
     }
@@ -363,7 +376,8 @@ class BusStopService {
   /// [busStopId] - The ID of the bus stop
   /// [lines] - List of line identifiers to get upcoming buses for
   /// Returns a list of [UpcomingBus] objects with real-time arrival information
-  static Future<List<UpcomingBus>> getUpcomingBuses(String busStopId, List<String> lines) async {
+  static Future<List<UpcomingBus>> getUpcomingBuses(
+      String busStopId, List<String> lines) async {
     final token = await getValidatedToken();
     if (token == null) {
       throw Exception('Unable to get valid access token');
@@ -374,7 +388,9 @@ class BusStopService {
 
     try {
       // Replace placeholders in the URL with actual values
-      final apiUrl = _busStopsApiUpcoming.replaceAll('{busStopId}', busStopId).replaceAll('{busesList}', busesList.replaceAll(",", "%2C"));
+      final apiUrl = _busStopsApiUpcoming
+          .replaceAll('{busStopId}', busStopId)
+          .replaceAll('{busesList}', busesList.replaceAll(",", "%2C"));
 
       final response = await http.get(
         Uri.parse(apiUrl),
@@ -404,7 +420,9 @@ class BusStopService {
         }
 
         // Convert to UpcomingBus objects
-        final upcomingBuses = upcomingBusesData.map((json) => UpcomingBus.fromJson(json)).toList();
+        final upcomingBuses = upcomingBusesData
+            .map((json) => UpcomingBus.fromJson(json))
+            .toList();
 
         // Sort by ETA (earliest first)
         upcomingBuses.sort((a, b) => a.eta.compareTo(b.eta));
@@ -418,7 +436,8 @@ class BusStopService {
         // Bus stop not found or no upcoming buses
         return [];
       } else {
-        throw Exception('Failed to load upcoming buses: ${response.statusCode}');
+        throw Exception(
+            'Failed to load upcoming buses: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error fetching upcoming buses: $e');
@@ -431,7 +450,8 @@ class BusStopService {
   ///
   /// [busStopId] - The ID of the bus stop
   /// Returns a list of [UpcomingBus] objects with real-time arrival information
-  static Future<List<UpcomingBus>> getUpcomingBusesForAllLines(String busStopId) async {
+  static Future<List<UpcomingBus>> getUpcomingBusesForAllLines(
+      String busStopId) async {
     try {
       // First get the lines for this bus stop
       final busLines = await getBusStopLines(busStopId);

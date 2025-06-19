@@ -8,6 +8,7 @@ import 'package:mibondiuy/models/bus.dart';
 import 'package:mibondiuy/models/bus_stop.dart';
 import 'package:mibondiuy/models/company.dart';
 import 'package:mibondiuy/utils/marker_clustering.dart';
+import 'package:mibondiuy/services/logging_service.dart';
 
 class _PieChartPainter extends CustomPainter {
   final Map<int, int> companyDistribution;
@@ -23,7 +24,8 @@ class _PieChartPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - strokeWidth;
 
-    final totalBuses = companyDistribution.values.fold<int>(0, (sum, count) => sum + count);
+    final totalBuses =
+        companyDistribution.values.fold<int>(0, (sum, count) => sum + count);
     if (totalBuses == 0) return;
 
     double startAngle = -math.pi / 2; // Start from top
@@ -60,7 +62,8 @@ class _PieChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return oldDelegate is! _PieChartPainter || oldDelegate.companyDistribution != companyDistribution;
+    return oldDelegate is! _PieChartPainter ||
+        oldDelegate.companyDistribution != companyDistribution;
   }
 }
 
@@ -197,16 +200,23 @@ class _PlatformMapState extends State<PlatformMap> {
 
     // Calculate visible bounds based on current camera position and screen size
     final screenSize = MediaQuery.of(context).size;
-    final visibleBounds = MarkerClustering.calculateVisibleBounds(_currentCenter, _currentZoom, screenSize);
+    final visibleBounds = MarkerClustering.calculateVisibleBounds(
+        _currentCenter, _currentZoom, screenSize);
 
     // Apply viewport culling - only show bus stops in visible area
     final visibleBusStops = widget.busStops.where((busStop) {
-      return busStop.latitude >= visibleBounds.south && busStop.latitude <= visibleBounds.north && busStop.longitude >= visibleBounds.west && busStop.longitude <= visibleBounds.east;
+      return busStop.latitude >= visibleBounds.south &&
+          busStop.latitude <= visibleBounds.north &&
+          busStop.longitude >= visibleBounds.west &&
+          busStop.longitude <= visibleBounds.east;
     }).toList();
 
-    debugPrint('Total bus stops: ${widget.busStops.length}, Visible: ${visibleBusStops.length}');
+    logger.debug(
+        'Total bus stops: ${widget.busStops.length}, Visible: ${visibleBusStops.length}');
 
-    return visibleBusStops.map((busStop) => _createBusStopMarker(busStop)).toList();
+    return visibleBusStops
+        .map((busStop) => _createBusStopMarker(busStop))
+        .toList();
   }
 
   fmap.Marker _createBusStopMarker(BusStop busStop) {
@@ -221,7 +231,11 @@ class _PlatformMapState extends State<PlatformMap> {
             color: Theme.of(context).colorScheme.secondary,
             shape: BoxShape.rectangle,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.black, width: 2),
+            border: Border.all(
+                color: Theme.of(context).brightness == Brightness.light
+                    ? Colors.white
+                    : Colors.black,
+                width: 2),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.3),
@@ -244,11 +258,13 @@ class _PlatformMapState extends State<PlatformMap> {
     // Filter buses based on selected companies and lines
     final filteredBuses = widget.buses.where((bus) {
       // Apply company filter
-      if (widget.selectedCompanies.isNotEmpty && !widget.selectedCompanies.contains(bus.codigoEmpresa)) {
+      if (widget.selectedCompanies.isNotEmpty &&
+          !widget.selectedCompanies.contains(bus.codigoEmpresa)) {
         return false;
       }
       // Apply line filter
-      if (widget.selectedLines.isNotEmpty && !widget.selectedLines.contains(bus.linea)) {
+      if (widget.selectedLines.isNotEmpty &&
+          !widget.selectedLines.contains(bus.linea)) {
         return false;
       }
       return true;
@@ -256,12 +272,15 @@ class _PlatformMapState extends State<PlatformMap> {
 
     // Calculate visible bounds based on current camera position and screen size
     final screenSize = MediaQuery.of(context).size;
-    final visibleBounds = MarkerClustering.calculateVisibleBounds(_currentCenter, _currentZoom, screenSize);
+    final visibleBounds = MarkerClustering.calculateVisibleBounds(
+        _currentCenter, _currentZoom, screenSize);
 
     // Apply viewport culling - only show buses in visible area
-    final visibleBuses = MarkerClustering.filterBusesInBounds(filteredBuses, visibleBounds);
+    final visibleBuses =
+        MarkerClustering.filterBusesInBounds(filteredBuses, visibleBounds);
 
-    debugPrint('Total buses: ${widget.buses.length}, Filtered: ${filteredBuses.length}, Visible: ${visibleBuses.length}');
+    logger.trace(
+        'Total buses: ${widget.buses.length}, Filtered: ${filteredBuses.length}, Visible: ${visibleBuses.length}');
 
     // Cluster the visible buses
     final clusters = MarkerClustering.clusterBuses(visibleBuses, _currentZoom);
@@ -291,7 +310,11 @@ class _PlatformMapState extends State<PlatformMap> {
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            border: Border.all(color: Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.black, width: 2),
+            border: Border.all(
+                color: Theme.of(context).brightness == Brightness.light
+                    ? Colors.white
+                    : Colors.black,
+                width: 2),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.3),
@@ -320,7 +343,8 @@ class _PlatformMapState extends State<PlatformMap> {
     // Calculate company distribution in the cluster
     final companyDistribution = <int, int>{};
     for (final bus in cluster.buses) {
-      companyDistribution[bus.codigoEmpresa] = (companyDistribution[bus.codigoEmpresa] ?? 0) + 1;
+      companyDistribution[bus.codigoEmpresa] =
+          (companyDistribution[bus.codigoEmpresa] ?? 0) + 1;
     }
 
     return fmap.Marker(
@@ -348,7 +372,9 @@ class _PlatformMapState extends State<PlatformMap> {
               CustomPaint(
                 painter: _PieChartPainter(
                   companyDistribution: companyDistribution,
-                  strokeWidth: Theme.of(context).brightness == Brightness.light ? 3.0 : 3.0,
+                  strokeWidth: Theme.of(context).brightness == Brightness.light
+                      ? 3.0
+                      : 3.0,
                 ),
                 size: const Size(45.0, 45.0),
               ),

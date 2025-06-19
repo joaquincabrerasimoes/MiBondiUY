@@ -7,7 +7,11 @@ class AdaptiveFilterPanel extends StatefulWidget {
   final int selectedCompany;
   final Set<int> selectedCompanies;
   final List<String> selectedLines;
-  final Function({int? subsystem, int? company, Set<int>? companies, List<String>? lines}) onFiltersChanged;
+  final Function(
+      {int? subsystem,
+      int? company,
+      Set<int>? companies,
+      List<String>? lines}) onFiltersChanged;
 
   const AdaptiveFilterPanel({
     super.key,
@@ -34,7 +38,9 @@ class _AdaptiveFilterPanelState extends State<AdaptiveFilterPanel> {
     super.initState();
     _tempSubsystem = widget.selectedSubsystem;
     _tempCompany = widget.selectedCompany;
-    _tempCompanies = widget.selectedCompanies.isNotEmpty ? Set.from(widget.selectedCompanies) : Company.companies.map((c) => c.code).toSet();
+    _tempCompanies = widget.selectedCompanies.isNotEmpty
+        ? Set.from(widget.selectedCompanies)
+        : Company.companies.map((c) => c.code).toSet();
     _tempLines = List.from(widget.selectedLines);
     _linesController = TextEditingController(text: _tempLines.join(', '));
   }
@@ -73,7 +79,8 @@ class _AdaptiveFilterPanelState extends State<AdaptiveFilterPanel> {
             ),
             child: Row(
               children: [
-                Icon(Icons.filter_list, color: Theme.of(context).colorScheme.onPrimary),
+                Icon(Icons.filter_list,
+                    color: Theme.of(context).colorScheme.onPrimary),
                 const SizedBox(width: 8),
                 Text(
                   'Filters',
@@ -144,7 +151,11 @@ class _AdaptiveFilterPanelState extends State<AdaptiveFilterPanel> {
                       isDense: true,
                     ),
                     onChanged: (value) {
-                      _tempLines = value.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+                      _tempLines = value
+                          .split(',')
+                          .map((s) => s.trim())
+                          .where((s) => s.isNotEmpty)
+                          .toList();
                     },
                   ),
                 ),
@@ -165,7 +176,8 @@ class _AdaptiveFilterPanelState extends State<AdaptiveFilterPanel> {
                     setState(() {
                       if (value == true) {
                         // Select all companies
-                        _tempCompanies.addAll(Company.companies.map((c) => c.code));
+                        _tempCompanies
+                            .addAll(Company.companies.map((c) => c.code));
                       } else {
                         // Unselect all companies
                         _tempCompanies.clear();
@@ -221,7 +233,8 @@ class _AdaptiveFilterPanelState extends State<AdaptiveFilterPanel> {
                       setState(() {
                         _tempSubsystem = -1;
                         _tempCompany = -1;
-                        _tempCompanies = Company.companies.map((c) => c.code).toSet();
+                        _tempCompanies =
+                            Company.companies.map((c) => c.code).toSet();
                         _tempLines.clear();
                         _linesController.clear();
                       });
@@ -233,6 +246,8 @@ class _AdaptiveFilterPanelState extends State<AdaptiveFilterPanel> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
+                      _linesController.text =
+                          _linesController.text.toUpperCase();
                       widget.onFiltersChanged(
                         subsystem: _tempSubsystem,
                         company: _tempCompany,
