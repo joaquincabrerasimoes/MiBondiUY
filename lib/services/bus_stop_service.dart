@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -46,12 +45,6 @@ class BusStopService {
 
     // Token is expired, close to expiry, or doesn't exist - get a new one
     return await _requestNewToken();
-  }
-
-  /// Gets a valid OAuth 2.0 token, either from cache or by requesting a new one
-  /// @deprecated Use getValidatedToken() instead for better token management
-  static Future<String?> _getValidToken() async {
-    return await getValidatedToken();
   }
 
   /// Requests a new OAuth 2.0 token from the server

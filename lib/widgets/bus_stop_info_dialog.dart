@@ -41,7 +41,10 @@ class _BusStopInfoDialogState extends State<BusStopInfoDialog> {
                 height: 4,
                 margin: const EdgeInsets.only(top: 12, bottom: 8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -70,14 +73,22 @@ class _BusStopInfoDialogState extends State<BusStopInfoDialog> {
                         children: [
                           Text(
                             widget.busStop.name,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
                           Text(
                             'Stop ${widget.busStop.code}',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                           ),
                         ],
@@ -115,7 +126,8 @@ class BusStopTabbedContent extends StatefulWidget {
   State<BusStopTabbedContent> createState() => _BusStopTabbedContentState();
 }
 
-class _BusStopTabbedContentState extends State<BusStopTabbedContent> with TickerProviderStateMixin {
+class _BusStopTabbedContentState extends State<BusStopTabbedContent>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   List<BusLine> _busLines = [];
   List<UpcomingBus> _upcomingBuses = [];
@@ -209,21 +221,6 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
     }
   }
 
-  void _toggleLineSelection(String line) {
-    setState(() {
-      if (_selectedLines.contains(line)) {
-        _selectedLines.remove(line);
-      } else {
-        _selectedLines.add(line);
-      }
-    });
-
-    // Reload upcoming buses if we're on that tab
-    if (_tabController.index == 1) {
-      _loadUpcomingBuses();
-    }
-  }
-
   void _showLineFilterModal() {
     showModalBottomSheet(
       context: context,
@@ -253,7 +250,10 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
                       height: 4,
                       margin: const EdgeInsets.only(top: 12, bottom: 8),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -270,7 +270,10 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
                           Expanded(
                             child: Text(
                               'Filter Lines',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                             ),
@@ -278,7 +281,8 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
                           TextButton(
                             onPressed: () {
                               setModalState(() {
-                                _selectedLines = _busLines.map((line) => line.line).toSet();
+                                _selectedLines =
+                                    _busLines.map((line) => line.line).toSet();
                               });
                               setState(() {});
                             },
@@ -443,8 +447,11 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
       padding: const EdgeInsets.all(16.0),
       children: [
         _buildInfoRow(context, 'Stop Code', widget.busStop.code),
-        if (widget.busStop.address != null && widget.busStop.address!.isNotEmpty) _buildInfoRow(context, 'Address', widget.busStop.address!),
-        _buildInfoRow(context, 'Coordinates', '${widget.busStop.latitude.toStringAsFixed(6)}, ${widget.busStop.longitude.toStringAsFixed(6)}'),
+        if (widget.busStop.address != null &&
+            widget.busStop.address!.isNotEmpty)
+          _buildInfoRow(context, 'Address', widget.busStop.address!),
+        _buildInfoRow(context, 'Coordinates',
+            '${widget.busStop.latitude.toStringAsFixed(6)}, ${widget.busStop.longitude.toStringAsFixed(6)}'),
         const SizedBox(height: 16),
         Text(
           'Lines serving this stop:',
@@ -459,7 +466,8 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
           children: _busLines
               .map((line) => Chip(
                     label: Text(line.line),
-                    backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.secondaryContainer,
                     labelStyle: TextStyle(
                       color: Theme.of(context).colorScheme.onSecondaryContainer,
                       fontWeight: FontWeight.w500,
@@ -485,7 +493,9 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
                     onPressed: () => _showLineFilterModal(),
                     icon: const Icon(Icons.filter_list),
                     label: Text(
-                      _selectedLines.isEmpty ? 'Filter by lines' : '${_selectedLines.length} lines selected',
+                      _selectedLines.isEmpty
+                          ? 'Filter by lines'
+                          : '${_selectedLines.length} lines selected',
                     ),
                   ),
                 ),
@@ -644,7 +654,9 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent> with Ticker
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: bus.eta <= 60 ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary,
+                    color: bus.eta <= 60
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ],
