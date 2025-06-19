@@ -74,6 +74,7 @@ class PlatformMap extends StatefulWidget {
   final List<BusStop> busStops;
   final Set<int> selectedCompanies;
   final List<String> selectedLines;
+  final BusStop? selectedBusStop;
   final Function(Bus) onBusMarkerTapped;
   final Function(BusCluster) onClusterMarkerTapped;
   final Function(BusStop)? onBusStopMarkerTapped;
@@ -85,6 +86,7 @@ class PlatformMap extends StatefulWidget {
     required this.initialZoom,
     required this.buses,
     this.busStops = const [],
+    this.selectedBusStop,
     required this.selectedCompanies,
     required this.selectedLines,
     required this.onBusMarkerTapped,
@@ -220,10 +222,15 @@ class _PlatformMapState extends State<PlatformMap> {
   }
 
   fmap.Marker _createBusStopMarker(BusStop busStop) {
+    bool isSelectedBusStop = false;
+    if (widget.selectedBusStop != null) {
+      isSelectedBusStop = widget.selectedBusStop!.id == busStop.id;
+    }
+
     return fmap.Marker(
       point: ll.LatLng(busStop.latitude, busStop.longitude),
-      width: 24.0,
-      height: 24.0,
+      width: isSelectedBusStop ? 36 : 24.0,
+      height: isSelectedBusStop ? 36 : 24.0,
       child: GestureDetector(
         onTap: () => widget.onBusStopMarkerTapped?.call(busStop),
         child: Container(
@@ -232,14 +239,18 @@ class _PlatformMapState extends State<PlatformMap> {
             shape: BoxShape.rectangle,
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
-                color: Theme.of(context).brightness == Brightness.light
-                    ? Colors.white
-                    : Colors.black,
-                width: 2),
+                color: isSelectedBusStop
+                    ? Colors.green
+                    : (Theme.of(context).brightness == Brightness.light
+                        ? Colors.white
+                        : Colors.black),
+                width: isSelectedBusStop ? 4 : 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 3,
+                color: isSelectedBusStop
+                    ? Colors.green.withValues(alpha: 0.6)
+                    : Colors.black.withValues(alpha: 0.3),
+                blurRadius: isSelectedBusStop ? 6 : 3,
                 offset: const Offset(0, 1),
               ),
             ],
@@ -300,41 +311,112 @@ class _PlatformMapState extends State<PlatformMap> {
   fmap.Marker _createSingleBusMarker(Bus bus) {
     final color = Company.getColorByCode(bus.codigoEmpresa);
 
-    return fmap.Marker(
-      point: ll.LatLng(bus.latitude, bus.longitude),
-      width: 30.0,
-      height: 30.0,
-      child: GestureDetector(
-        onTap: () => widget.onBusMarkerTapped(bus),
+    bool isLineOfSelectedBusStop = false;
+    bool isUpcomingOfSelectedBusStop = false;
+
+    if (widget.selectedBusStop != null) {
+      if (widget.selectedBusStop!.lines != null) {
+        logger
+            .trace('Selected bus stop lines: ${widget.selectedBusStop!.lines}');
+        isLineOfSelectedBusStop = widget.selectedBusStop!.lines!
+            .any((line) => line.line == bus.linea);
+      }
+      if (widget.selectedBusStop!.upcomingBuses != null) {
+        logger.trace(
+            'Selected bus stop upcoming buses: ${widget.selectedBusStop!.upcomingBuses}');
+        isUpcomingOfSelectedBusStop = widget.selectedBusStop!.upcomingBuses!
+            .any((upcoming) => upcoming.busId == bus.codigoBus);
+      }
+    }
+
+    Widget markerContent = Text(
+      bus.linea,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+      ),
+      textAlign: TextAlign.center,
+    );
+
+    Widget shapeWidget;
+
+    if (isUpcomingOfSelectedBusStop || isLineOfSelectedBusStop) {
+      // 45-degree rotated square for buses of selected bus stop lines
+      // Green shadow for upcoming buses, regular shadow for line buses
+      shapeWidget = Transform.rotate(
+        angle: math.pi / 4, // 45 degrees in radians
         child: Container(
+          width: isUpcomingOfSelectedBusStop
+              ? 34.0
+              : 28.0, // Slightly smaller to fit within bounds when rotated
+          height: isUpcomingOfSelectedBusStop ? 34.0 : 28.0,
           decoration: BoxDecoration(
             color: color,
-            shape: BoxShape.circle,
+            shape: BoxShape.rectangle,
             border: Border.all(
-                color: Theme.of(context).brightness == Brightness.light
-                    ? Colors.white
-                    : Colors.black,
-                width: 2),
+                color: isUpcomingOfSelectedBusStop
+                    ? Colors.green
+                    : (Theme.of(context).brightness == Brightness.light
+                        ? Colors.white
+                        : Colors.black),
+                width: isUpcomingOfSelectedBusStop ? 4 : 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 4,
+                color: isUpcomingOfSelectedBusStop
+                    ? Colors.green.withValues(alpha: 0.6)
+                    : Colors.black.withValues(alpha: 0.3),
+                blurRadius: isUpcomingOfSelectedBusStop ? 6 : 4,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
-          child: Center(
-            child: Text(
-              bus.linea,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
+          child: Transform.rotate(
+            angle: -math.pi / 4, // Counter-rotate the text to keep it upright
+            child: Center(child: markerContent),
           ),
         ),
+      );
+    } else {
+      // Circle shape for regular buses
+      shapeWidget = Container(
+        width: 30.0,
+        height: 30.0,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Colors.white
+                  : Colors.black,
+              width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(child: markerContent),
+      );
+    }
+
+    return fmap.Marker(
+      point: ll.LatLng(bus.latitude, bus.longitude),
+      width: isUpcomingOfSelectedBusStop
+          ? 40.0
+          : isLineOfSelectedBusStop
+              ? 35.0
+              : 30.0,
+      height: isUpcomingOfSelectedBusStop
+          ? 40.0
+          : isLineOfSelectedBusStop
+              ? 35.0
+              : 30.0,
+      child: GestureDetector(
+        onTap: () => widget.onBusMarkerTapped(bus),
+        child: shapeWidget,
       ),
     );
   }

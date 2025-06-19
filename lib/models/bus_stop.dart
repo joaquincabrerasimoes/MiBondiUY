@@ -5,7 +5,8 @@ class BusStop {
   final double latitude;
   final double longitude;
   final String? address;
-  final List<String>? lines;
+  List<BusLine>? lines;
+  List<UpcomingBus>? upcomingBuses;
 
   BusStop({
     required this.id,
@@ -15,6 +16,7 @@ class BusStop {
     required this.longitude,
     this.address,
     this.lines,
+    this.upcomingBuses,
   });
 
   factory BusStop.fromJson(Map<String, dynamic> json) {
@@ -45,9 +47,14 @@ class BusStop {
       code: json['code']?.toString() ?? json['busstopId']?.toString() ?? '',
       name: json['name']?.toString() ?? constructedName,
       latitude: json['latitude']?.toDouble() ?? json['lat']?.toDouble() ?? lat,
-      longitude: json['longitude']?.toDouble() ?? json['lng']?.toDouble() ?? json['lon']?.toDouble() ?? lng,
+      longitude: json['longitude']?.toDouble() ??
+          json['lng']?.toDouble() ??
+          json['lon']?.toDouble() ??
+          lng,
       address: json['address']?.toString() ?? constructedName,
-      lines: json['lines'] != null ? List<String>.from(json['lines'].map((x) => x.toString())) : null,
+      lines: json['lines'] != null
+          ? List<BusLine>.from(json['lines'].map((x) => BusLine.fromJson(x)))
+          : null,
     );
   }
 

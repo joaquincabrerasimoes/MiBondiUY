@@ -2,124 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:mibondiuy/models/bus_stop.dart';
 import 'package:mibondiuy/services/bus_stop_service.dart';
 
-class BusStopInfoDialog extends StatefulWidget {
-  final BusStop busStop;
-  final Function(BusStop)? onBusStopMarkerTapped;
-
-  const BusStopInfoDialog({
-    super.key,
-    required this.busStop,
-    this.onBusStopMarkerTapped,
-  });
-
-  @override
-  State<BusStopInfoDialog> createState() => _BusStopInfoDialogState();
-}
-
-class _BusStopInfoDialogState extends State<BusStopInfoDialog> {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-          return Column(
-            children: [
-              // Drag handle
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant
-                      .withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondary,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(
-                        Icons.directions_bus_outlined,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.busStop.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          Text(
-                            'Stop ${widget.busStop.code}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Tabbed Content
-              Expanded(
-                child: BusStopTabbedContent(
-                  busStop: widget.busStop,
-                  onBusStopMarkerTapped: widget.onBusStopMarkerTapped,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
 class BusStopTabbedContent extends StatefulWidget {
   final BusStop busStop;
   final Function(BusStop)? onBusStopMarkerTapped;
+  final Function(List<BusLine>)? onBusStopLinesLoaded;
+  final Function(List<UpcomingBus>)? onBusStopLiveLinesLoaded;
 
   const BusStopTabbedContent({
     super.key,
     required this.busStop,
     this.onBusStopMarkerTapped,
+    this.onBusStopLinesLoaded,
+    this.onBusStopLiveLinesLoaded,
   });
 
   @override
@@ -443,6 +337,8 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent>
       );
     }
 
+    widget.onBusStopLinesLoaded?.call(_busLines);
+
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
@@ -614,6 +510,8 @@ class _BusStopTabbedContentState extends State<BusStopTabbedContent>
         ),
       );
     }
+
+    widget.onBusStopLiveLinesLoaded?.call(_upcomingBuses);
 
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),

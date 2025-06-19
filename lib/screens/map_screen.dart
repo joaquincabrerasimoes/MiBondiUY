@@ -9,11 +9,11 @@ import 'package:mibondiuy/services/bus_stop_service.dart';
 import 'package:mibondiuy/services/logging_service.dart';
 import 'package:mibondiuy/services/theme_service.dart' as theme_service;
 import 'package:mibondiuy/utils/marker_clustering.dart';
+import 'package:mibondiuy/widgets/bus_stop_tabbed_content.dart';
 import 'package:mibondiuy/widgets/filter_drawer.dart';
 import 'package:mibondiuy/widgets/adaptive_filter_panel.dart';
 import 'package:mibondiuy/widgets/platform_map.dart';
 import 'package:mibondiuy/widgets/refresh_countdown.dart';
-import 'package:mibondiuy/widgets/bus_stop_info_dialog.dart';
 import 'package:mibondiuy/screens/about_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -560,6 +560,7 @@ class _MapScreenState extends State<MapScreen> {
             busStops: _busStops,
             selectedCompanies: _selectedCompanies,
             selectedLines: _selectedLines,
+            selectedBusStop: _showBusStopPanel ? _selectedBusStop : null,
             onBusMarkerTapped: _showBusInfo,
             onClusterMarkerTapped: _showClusterInfo,
             onBusStopMarkerTapped: _showBusStopInfo,
@@ -678,6 +679,12 @@ class _MapScreenState extends State<MapScreen> {
                         child: BusStopTabbedContent(
                           busStop: _selectedBusStop!,
                           onBusStopMarkerTapped: _showBusStopInfo,
+                          onBusStopLinesLoaded: (lines) {
+                            _selectedBusStop!.lines = lines;
+                          },
+                          onBusStopLiveLinesLoaded: (upcomingBuses) {
+                            _selectedBusStop!.upcomingBuses = upcomingBuses;
+                          },
                         ),
                       ),
                     ),
