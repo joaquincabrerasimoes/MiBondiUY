@@ -1,4 +1,4 @@
-package com.example.mibondiuy
+package com.joaquincabrerasimoes.mibondiuy
 
 import io.flutter.embedding.android.FlutterActivity
 

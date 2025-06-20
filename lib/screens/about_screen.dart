@@ -18,8 +18,8 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 32),
             // App logo
             SizedBox(
-              width: 512,
-              height: 512,
+              width: 240,
+              height: 240,
               child: Stack(
                 children: [
                   // Uruguay shape background (centered)
@@ -31,20 +31,20 @@ class AboutScreen extends StatelessWidget {
                       ),
                       child: Image.asset(
                         'assets/images/uruguayShape.png',
-                        width: 512,
-                        height: 512,
+                        width: 256,
+                        height: 256,
                         fit: BoxFit.contain,
                       ),
                     ),
                   ),
                   // Bus icon positioned with pixel precision
                   Positioned(
-                    left: 90, // Adjust these values to position the icon
-                    top: 150, // exactly where you want it
+                    left: 40, // Adjust these values to position the icon
+                    top: 70, // exactly where you want it
                     child: const Icon(
                       Icons.directions_bus_rounded,
                       color: Colors.white,
-                      size: 300,
+                      size: 150,
                     ),
                   ),
                 ],

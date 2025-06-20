@@ -179,7 +179,7 @@ class _PlatformMapState extends State<PlatformMap> {
         if (Theme.of(context).brightness == Brightness.light)
           fmap.TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.MiBondiUY',
+            userAgentPackageName: 'com.joaquincabrerasimoes.MiBondiUY',
             maxNativeZoom: 19,
           )
         else
@@ -192,7 +192,7 @@ class _PlatformMapState extends State<PlatformMap> {
             ]),
             child: fmap.TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.MiBondiUY',
+              userAgentPackageName: 'com.joaquincabrerasimoes.MiBondiUY',
               maxNativeZoom: 19,
             ),
           ),
